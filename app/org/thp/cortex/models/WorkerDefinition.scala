@@ -1,8 +1,6 @@
 package org.thp.cortex.models
 
-import java.nio.file.Path
-
-import scala.util.{ Failure, Success, Try }
+import java.nio.file.{ Path, Paths }
 
 import play.api.Logger
 import play.api.libs.functional.syntax._
@@ -80,8 +78,8 @@ case class WorkerDefinition(
     author: String,
     url: String,
     license: String,
-    baseDirectory: Path,
-    command: String,
+    image: Option[String],
+    command: Option[Path],
     baseConfiguration: Option[String],
     configurationItems: Seq[ConfigurationDefinitionItem],
     configuration: JsObject,
@@ -94,28 +92,28 @@ case class WorkerDefinition(
 object WorkerDefinition {
   lazy val logger = Logger(getClass)
 
-  def fromPath(definitionFile: Path, workerType: WorkerType.Type): Try[WorkerDefinition] = {
-    readJsonFile(definitionFile)
-      .recoverWith {
-        case error ⇒
-          logger.warn(s"Load of worker $definitionFile fails", error)
-          Failure(error)
-      }
-      .map(_.validate(WorkerDefinition.reads(definitionFile.getParent.getParent, workerType)))
-      .flatMap {
-        case JsSuccess(workerDefinition, _) ⇒ Success(workerDefinition)
-        case JsError(errors)                ⇒ sys.error(s"Json description file $definitionFile is invalid: $errors")
-      }
-  }
+  //  def fromPath(definitionFile: Path, workerType: WorkerType.Type): Try[WorkerDefinition] = {
+  //    readJsonFile(definitionFile)
+  //      .recoverWith {
+  //        case error ⇒
+  //          logger.warn(s"Load of worker $definitionFile fails", error)
+  //          Failure(error)
+  //      }
+  //      .map(_.validate(WorkerDefinition.reads(definitionFile.getParent.getParent, workerType)))
+  //      .flatMap {
+  //        case JsSuccess(workerDefinition, _) ⇒ Success(workerDefinition)
+  //        case JsError(errors)                ⇒ sys.error(s"Json description file $definitionFile is invalid: $errors")
+  //      }
+  //  }
 
-  private def readJsonFile(file: Path): Try[JsObject] = {
-    val source = scala.io.Source.fromFile(file.toFile)
-    val json = Try(Json.parse(source.mkString).as[JsObject])
-    source.close()
-    json
-  }
+  //  private def readJsonFile(file: Path): Try[JsObject] = {
+  //    val source = scala.io.Source.fromFile(file.toFile)
+  //    val json = Try(Json.parse(source.mkString).as[JsObject])
+  //    source.close()
+  //    json
+  //  }
 
-  def reads(path: Path, workerType: WorkerType.Type): Reads[WorkerDefinition] = (
+  def singleReads(workerType: WorkerType.Type): Reads[WorkerDefinition] = (
     (JsPath \ "name").read[String] and
     (JsPath \ "version").read[String] and
     (JsPath \ "description").read[String] and
@@ -123,12 +121,17 @@ object WorkerDefinition {
     (JsPath \ "author").read[String] and
     (JsPath \ "url").read[String] and
     (JsPath \ "license").read[String] and
-    Reads.pure(path) and
-    (JsPath \ "command").read[String] and
+    (JsPath \ "image").readNullable[String] and
+    (JsPath \ "command").readNullable[String].map(_.map(Paths.get(_))) and
     (JsPath \ "baseConfig").readNullable[String] and
     (JsPath \ "configurationItems").read[Seq[ConfigurationDefinitionItem]].orElse(Reads.pure(Nil)) and
     (JsPath \ "config").read[JsObject].orElse(Reads.pure(JsObject.empty)) and
     Reads.pure(workerType))(WorkerDefinition.apply _)
+  def reads(workerType: WorkerType.Type): Reads[List[WorkerDefinition]] = {
+    val reads = singleReads(workerType)
+    reads.map(List(_)) orElse Reads.list(reads)
+  }
+
   implicit val writes: Writes[WorkerDefinition] = Writes[WorkerDefinition] { workerDefinition ⇒
     Json.obj(
       "id" → workerDefinition.id,

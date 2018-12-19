@@ -36,6 +36,7 @@ trait JobAttributes {
   val fromCache = optionalAttribute("fromCache", F.booleanFmt, "Indicates if cache is used", O.form)
   val tpe = attribute("type", F.enumFmt(WorkerType), "", O.readonly)
   val lbel = optionalAttribute("label", F.stringFmt, "Label of the job")
+  val executionId = optionalAttribute("executionId", F.stringFmt, "ID of the execution (container or process)")
 }
 
 @Singleton
