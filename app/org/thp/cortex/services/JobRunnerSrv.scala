@@ -97,6 +97,10 @@ class JobRunnerSrv @Inject() (
         val proxy_http = (worker.config \ "config" \ "proxy_http").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("http" → proxy)) }
         val proxy_https = (worker.config \ "config" \ "proxy_https").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("https" → proxy)) }
         val config = worker.config.deepMerge(proxy_http).deepMerge(proxy_https)
+        (worker.config \ "config" \ "cacerts").asOpt[String].foreach { cacerts ⇒
+          val cacertsFile = jobFolder.resolve("input").resolve("cacerts")
+          Files.write(cacertsFile, cacerts.getBytes)
+        }
         artifact +
           ("dataType" → JsString(job.dataType())) +
           ("tlp" → JsNumber(job.tlp())) +
@@ -189,9 +193,22 @@ class JobRunnerSrv @Inject() (
         _ ← startJob(job)
         j ← runners
           .foldLeft[Option[Future[Unit]]](None) {
-            case (None, "docker")  ⇒ worker.dockerImage().map(dockerImage ⇒ dockerJobRunnerSrv.run(jobFolder, dockerImage, job)(executionContext))
-            case (None, "process") ⇒ worker.command().map(command ⇒ processJobRunnerSrv.run(jobFolder, command, job)(executionContext))
-            case (j: Some[_], _)   ⇒ j
+            case (None, "docker") ⇒
+              worker.dockerImage()
+                .map(dockerImage ⇒ dockerJobRunnerSrv.run(jobFolder, dockerImage, job)(executionContext))
+                .orElse {
+                  logger.warn(s"worker ${worker.id} can't be run with docker (doesn't have image)")
+                  None
+                }
+            case (None, "process") ⇒
+
+              worker.command()
+                .map(command ⇒ processJobRunnerSrv.run(jobFolder, command, job)(executionContext))
+                .orElse {
+                  logger.warn(s"worker ${worker.id} can't be run with process (doesn't have image)")
+                  None
+                }
+            case (j: Some[_], _) ⇒ j
             case (None, runner) ⇒
               logger.warn(s"Unknown job runner: $runner")
               None
@@ -202,7 +219,7 @@ class JobRunnerSrv @Inject() (
       finishedJob
         .transformWith { r ⇒
           r.fold(
-            error ⇒ endJob(job, JobStatus.Failure, Some(error.getMessage), Some(readFile(jobFolder.resolve("input").resolve("input.json")))),
+            error ⇒ endJob(job, JobStatus.Failure, Option(error.getMessage), Some(readFile(jobFolder.resolve("input").resolve("input.json")))),
             _ ⇒ extractReport(jobFolder, job))
         }
       //.andThen { case _ ⇒ delete(jobFolder) }

@@ -13,9 +13,9 @@ import javax.inject.{ Inject, Singleton }
 import org.thp.cortex.models._
 
 @Singleton
-class DockerJobRunnerSrv(client: DockerClient) {
+class DockerJobRunnerSrv(client: DockerClient, autoUpdate: Boolean) {
 
-  def this() = this(DefaultDockerClient.fromEnv().build())
+  def this() = this(DefaultDockerClient.fromEnv().build(), false)
 
   @Inject()
   def this(config: Configuration) = this(new DefaultDockerClient.Builder()
@@ -27,12 +27,14 @@ class DockerJobRunnerSrv(client: DockerClient) {
     //.registryAuthSupplier()
     .uri(config.getOptional[String]("docker.uri").getOrElse("unix:///var/run/docker.sock"))
     .useProxy(config.getOptional[Boolean]("docker.useProxy").getOrElse(false))
-    .build())
+    .build(),
+    config.getOptional[Boolean]("docker.autoUpdate").getOrElse(true))
 
   lazy val logger = Logger(getClass)
 
   def run(jobDirectory: Path, dockerImage: String, job: Job)(implicit ec: ExecutionContext): Future[Unit] = {
-    client.pull(dockerImage)
+    import scala.collection.JavaConverters._
+    //    client.pull(dockerImage)
     //    ContainerConfig.builder().addVolume()
     val hostConfig = HostConfig.builder()
       .appendBinds(Bind.from(jobDirectory.toAbsolutePath.toString)
@@ -40,12 +42,22 @@ class DockerJobRunnerSrv(client: DockerClient) {
         .readOnly(false)
         .build())
       .build()
-    val containerCreation = client.createContainer(ContainerConfig.builder()
+    val cacertsFile = jobDirectory.resolve("input").resolve("cacerts")
+    val containerConfigBuilder = ContainerConfig
+      .builder()
       .hostConfig(hostConfig)
       .image(dockerImage)
       .cmd("/job")
-      .build())
+
+    val containerConfig = if (Files.exists(cacertsFile)) containerConfigBuilder.env(s"REQUESTS_CA_BUNDLE=/job/input/cacerts").build()
+    else containerConfigBuilder.build()
+    val containerCreation = client.createContainer(containerConfig)
     //          Option(containerCreation.warnings()).flatMap(_.asScala).foreach(logger.warn)
+    logger.info(s"Execute container ${containerCreation.id()}\n" +
+      s"  image : $dockerImage\n" +
+      s"  volume: ${jobDirectory.toAbsolutePath}:/job" +
+      Option(containerConfig.env()).fold("")(_.asScala.map("\n  env   : " + _).mkString))
+
     client.startContainer(containerCreation.id())
 
     Future {
