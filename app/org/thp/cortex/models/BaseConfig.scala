@@ -25,7 +25,7 @@ object BaseConfig {
     BaseConfig("global", Nil, typedItems ++ Seq(
       ConfigurationDefinitionItem("proxy_http", "url of http proxy", WorkerConfigItemType.string, multi = false, required = false, None),
       ConfigurationDefinitionItem("proxy_https", "url of https proxy", WorkerConfigItemType.string, multi = false, required = false, None),
-      ConfigurationDefinitionItem("cacerts", "Certificate authotities", WorkerConfigItemType.string, multi = false, required = false, None)),
+      ConfigurationDefinitionItem("cacerts", "Certificate authotities", WorkerConfigItemType.text, multi = false, required = false, None)),
       None)
   }
   val tlp = BaseConfig("tlp", Nil, Seq(

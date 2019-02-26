@@ -17,7 +17,7 @@ import org.elastic4play.{ AttributeError, InvalidFormatAttributeError, MissingAt
 
 object WorkerConfigItemType extends Enumeration with HiveEnumeration {
   type Type = Value
-  val string, number, boolean = Value
+  val text, string, number, boolean = Value
   implicit val reads: Format[WorkerConfigItemType.Type] = enumFormat(this)
 }
 
@@ -35,11 +35,11 @@ case class ConfigurationDefinitionItem(
   private def check(v: JsValue): JsValue Or Every[AttributeError] = {
     import WorkerConfigItemType._
     v match {
-      case _: JsString if `type` == string   ⇒ Good(v)
-      case _: JsNumber if `type` == number   ⇒ Good(v)
-      case _: JsBoolean if `type` == boolean ⇒ Good(v)
-      case JsNull if !isRequired             ⇒ Good(v)
-      case _                                 ⇒ Bad(One(InvalidFormatAttributeError(s"$name[]", `type`.toString, JsonInputValue(v))))
+      case _: JsString if `type` == string || `type` == text ⇒ Good(v)
+      case _: JsNumber if `type` == number                   ⇒ Good(v)
+      case _: JsBoolean if `type` == boolean                 ⇒ Good(v)
+      case JsNull if !isRequired                             ⇒ Good(v)
+      case _                                                 ⇒ Bad(One(InvalidFormatAttributeError(s"$name[]", `type`.toString, JsonInputValue(v))))
     }
   }
 

@@ -18,7 +18,8 @@ class DockerJobRunnerSrv(client: DockerClient, autoUpdate: Boolean) {
   def this() = this(DefaultDockerClient.fromEnv().build(), false)
 
   @Inject()
-  def this(config: Configuration) = this(new DefaultDockerClient.Builder()
+  def this(config: Configuration) = this(
+    new DefaultDockerClient.Builder()
     .apiVersion(config.getOptional[String]("docker.version").orNull)
     .connectionPoolSize(config.getOptional[Int]("docker.connectionPoolSize").getOrElse(100))
     .connectTimeoutMillis(config.getOptional[Long]("docker.connectTimeoutMillis").getOrElse(5000))
