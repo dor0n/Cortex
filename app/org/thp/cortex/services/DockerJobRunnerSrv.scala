@@ -20,15 +20,15 @@ class DockerJobRunnerSrv(client: DockerClient, autoUpdate: Boolean) {
   @Inject()
   def this(config: Configuration) = this(
     new DefaultDockerClient.Builder()
-    .apiVersion(config.getOptional[String]("docker.version").orNull)
-    .connectionPoolSize(config.getOptional[Int]("docker.connectionPoolSize").getOrElse(100))
-    .connectTimeoutMillis(config.getOptional[Long]("docker.connectTimeoutMillis").getOrElse(5000))
-    //.dockerCertificates()
-    .readTimeoutMillis(config.getOptional[Long]("docker.readTimeoutMillis").getOrElse(30000))
-    //.registryAuthSupplier()
-    .uri(config.getOptional[String]("docker.uri").getOrElse("unix:///var/run/docker.sock"))
-    .useProxy(config.getOptional[Boolean]("docker.useProxy").getOrElse(false))
-    .build(),
+      .apiVersion(config.getOptional[String]("docker.version").orNull)
+      .connectionPoolSize(config.getOptional[Int]("docker.connectionPoolSize").getOrElse(100))
+      .connectTimeoutMillis(config.getOptional[Long]("docker.connectTimeoutMillis").getOrElse(5000))
+      //.dockerCertificates()
+      .readTimeoutMillis(config.getOptional[Long]("docker.readTimeoutMillis").getOrElse(30000))
+      //.registryAuthSupplier()
+      .uri(config.getOptional[String]("docker.uri").getOrElse("unix:///var/run/docker.sock"))
+      .useProxy(config.getOptional[Boolean]("docker.useProxy").getOrElse(false))
+      .build(),
     config.getOptional[Boolean]("docker.autoUpdate").getOrElse(true))
 
   lazy val logger = Logger(getClass)

@@ -94,10 +94,10 @@ class JobRunnerSrv @Inject() (
           Json.obj("data" → job.data().get)
       }
       .map { artifact ⇒
-        val proxy_http = (worker.config \ "config" \ "proxy_http").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("http" → proxy)) }
-        val proxy_https = (worker.config \ "config" \ "proxy_https").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("https" → proxy)) }
+        val proxy_http = (worker.config \ "proxy_http").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("http" → proxy)) }
+        val proxy_https = (worker.config \ "proxy_https").asOpt[String].fold(JsObject.empty) { proxy ⇒ Json.obj("proxy" → Json.obj("https" → proxy)) }
         val config = worker.config.deepMerge(proxy_http).deepMerge(proxy_https)
-        (worker.config \ "config" \ "cacerts").asOpt[String].foreach { cacerts ⇒
+        (worker.config \ "cacerts").asOpt[String].foreach { cacerts ⇒
           val cacertsFile = jobFolder.resolve("input").resolve("cacerts")
           Files.write(cacertsFile, cacerts.getBytes)
         }
@@ -174,13 +174,13 @@ class JobRunnerSrv @Inject() (
     }
   }
 
-  private def fixArtifact(artifact: Fields): Fields = {
-    def rename(oldName: String, newName: String): Fields ⇒ Fields = fields ⇒
-      fields.getValue(oldName).fold(fields)(v ⇒ fields.unset(oldName).set(newName, v))
-
-    rename("value", "data").andThen(
-      rename("type", "dataType"))(artifact)
-  }
+  //  private def fixArtifact(artifact: Fields): Fields = {
+  //    def rename(oldName: String, newName: String): Fields ⇒ Fields = fields ⇒
+  //      fields.getValue(oldName).fold(fields)(v ⇒ fields.unset(oldName).set(newName, v))
+  //
+  //    rename("value", "data").andThen(
+  //      rename("type", "dataType"))(artifact)
+  //  }
 
   def run(worker: Worker, job: Job)(implicit authContext: AuthContext): Future[Job] = {
     prepareJobFolder(worker, job).flatMap { jobFolder ⇒
